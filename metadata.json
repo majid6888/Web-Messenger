@@ -1,0 +1,11 @@
+{
+  "name": "Web Messenger",
+  "description": "Real-time messaging platform with direct & group chats, voice messages, WebRTC audio/video calls, and media sharing.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

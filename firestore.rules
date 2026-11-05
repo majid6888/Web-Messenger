@@ -1,0 +1,217 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. Global Safety Net: Default-deny all unmapped collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Common Primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-@.]+$');
+    }
+
+    // 2. Users Collection
+    match /users/{userId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+
+      function isValidUserCreate(data) {
+        return data.keys().hasAll(['id', 'displayName', 'createdAt']) &&
+          data.id is string && data.id == request.auth.uid &&
+          data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 64 &&
+          data.createdAt is number;
+      }
+
+      function isValidUserUpdate(data) {
+        return incoming().id == existing().id &&
+          (!('displayName' in data) || (data.displayName is string && data.displayName.size() <= 64)) &&
+          (!('statusText' in data) || (data.statusText is string && data.statusText.size() <= 200)) &&
+          (!('photoURL' in data) || (data.photoURL is string && data.photoURL.size() <= 50000)) &&
+          (!('avatarUrl' in data) || (data.avatarUrl is string && data.avatarUrl.size() <= 50000));
+      }
+
+      allow create: if isOwner(userId) && isValidId(userId) && isValidUserCreate(incoming());
+      allow update: if isOwner(userId) && isValidId(userId) && isValidUserUpdate(incoming());
+      allow delete: if isOwner(userId);
+    }
+
+    // 3. Conversations Collection
+    match /conversations/{conversationId} {
+      function isParticipant() {
+        return isSignedIn() && (request.auth.uid in resource.data.participants);
+      }
+
+      function willBeParticipant() {
+        return isSignedIn() && (request.auth.uid in incoming().participants);
+      }
+
+      function isValidConversation(data) {
+        return data.keys().hasAll(['id', 'type', 'participants', 'createdAt', 'updatedAt']) &&
+          data.id is string && data.id.size() <= 128 &&
+          data.type in ['direct', 'group'] &&
+          data.participants is list && data.participants.size() >= 1 && data.participants.size() <= 100 &&
+          data.createdAt is number && data.updatedAt is number;
+      }
+
+      allow get: if isParticipant();
+      allow list: if isSignedIn() && (request.auth.uid in resource.data.participants);
+      allow create: if isSignedIn() && isValidId(conversationId) && willBeParticipant() && isValidConversation(incoming());
+      allow update: if isParticipant() && isValidId(conversationId) && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['updatedAt', 'lastMessage', 'unreadCount', 'name', 'avatarUrl', 'avatarEmoji', 'theme', 'participants', 'adminIds', 'description'])
+      );
+      allow delete: if isParticipant();
+
+      // Messages Sub-collection
+      match /messages/{messageId} {
+        function isValidMessage(data) {
+          return data.keys().hasAll(['id', 'conversationId', 'senderId', 'senderName', 'type', 'text', 'status', 'createdAt']) &&
+            data.id is string && data.id.size() <= 128 &&
+            data.conversationId is string && data.conversationId == conversationId &&
+            data.senderId is string && data.senderId == request.auth.uid &&
+            data.senderName is string && data.senderName.size() <= 64 &&
+            data.type in ['text', 'image', 'voice', 'video', 'file', 'poll', 'activity'] &&
+            data.text is string && data.text.size() <= 5000 &&
+            data.status in ['sent', 'delivered', 'read'] &&
+            data.createdAt is number;
+        }
+
+        allow get: if isSignedIn();
+        allow list: if isSignedIn();
+        allow create: if isSignedIn() && isValidId(messageId) && isValidMessage(incoming());
+        allow update: if isSignedIn() && isValidId(messageId) && (
+          // Sender editing message or anyone in conversation updating read receipts / reactions / pinning
+          (incoming().diff(existing()).affectedKeys().hasOnly(['readBy', 'deliveredTo', 'reactions', 'pinned', 'pinnedBy', 'pinnedByName', 'pinnedAt', 'deletedFor', 'deletedForEveryone', 'status'])) ||
+          (existing().senderId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['text', 'updatedAt']))
+        );
+        allow delete: if isSignedIn() && (existing().senderId == request.auth.uid);
+      }
+    }
+
+    // 4. Friend Requests Collection
+    match /friendRequests/{requestId} {
+      allow get: if isSignedIn() && (resource.data.fromUserId == request.auth.uid || resource.data.toUserId == request.auth.uid);
+      allow list: if isSignedIn() && (resource.data.fromUserId == request.auth.uid || resource.data.toUserId == request.auth.uid);
+
+      function isValidFriendRequest(data) {
+        return data.keys().hasAll(['id', 'fromUserId', 'toUserId', 'status', 'createdAt']) &&
+          data.id is string && data.id.size() <= 128 &&
+          data.fromUserId is string && data.fromUserId == request.auth.uid &&
+          data.toUserId is string && data.toUserId.size() <= 128 &&
+          data.status in ['pending', 'accepted', 'rejected'] &&
+          data.createdAt is number;
+      }
+
+      allow create: if isSignedIn() && isValidId(requestId) && isValidFriendRequest(incoming());
+      allow update: if isSignedIn() && (resource.data.toUserId == request.auth.uid || resource.data.fromUserId == request.auth.uid) &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['status']);
+      allow delete: if isSignedIn() && (resource.data.fromUserId == request.auth.uid || resource.data.toUserId == request.auth.uid);
+    }
+
+    // 5. Stories Collection
+    match /stories/{storyId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+
+      function isValidStory(data) {
+        return data.keys().hasAll(['id', 'userId', 'userName', 'type', 'content', 'createdAt', 'expiresAt']) &&
+          data.id is string && data.id.size() <= 128 &&
+          data.userId is string && data.userId == request.auth.uid &&
+          data.userName is string && data.userName.size() <= 64 &&
+          data.type in ['text', 'image', 'poll', 'quiz', 'question'] &&
+          data.content is string && data.content.size() <= 50000 &&
+          data.createdAt is number && data.expiresAt is number;
+      }
+
+      allow create: if isSignedIn() && isValidId(storyId) && isValidStory(incoming());
+      allow update: if isSignedIn() && (
+        (resource.data.userId == request.auth.uid) ||
+        (incoming().diff(existing()).affectedKeys().hasOnly(['reactions', 'viewers']))
+      );
+      allow delete: if isSignedIn() && resource.data.userId == request.auth.uid;
+    }
+
+    // 6. Polls Collection
+    match /polls/{pollId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+
+      function isValidPoll(data) {
+        return data.keys().hasAll(['id', 'conversationId', 'creatorId', 'question', 'options', 'createdAt']) &&
+          data.id is string && data.id.size() <= 128 &&
+          data.creatorId is string && data.creatorId == request.auth.uid &&
+          data.question is string && data.question.size() <= 300 &&
+          data.options is list && data.options.size() >= 2 && data.options.size() <= 20 &&
+          data.createdAt is number;
+      }
+
+      allow create: if isSignedIn() && isValidId(pollId) && isValidPoll(incoming());
+      allow update: if isSignedIn() && isValidId(pollId) && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['options', 'closed'])
+      );
+      allow delete: if isSignedIn() && resource.data.creatorId == request.auth.uid;
+    }
+
+    // 7. Activities Collection
+    match /activities/{activityId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+
+      function isValidActivity(data) {
+        return data.keys().hasAll(['id', 'conversationId', 'type', 'title', 'createdBy', 'createdAt']) &&
+          data.id is string && data.id.size() <= 128 &&
+          data.createdBy is string && data.createdBy == request.auth.uid &&
+          data.title is string && data.title.size() <= 100 &&
+          data.createdAt is number;
+      }
+
+      allow create: if isSignedIn() && isValidId(activityId) && isValidActivity(incoming());
+      allow update: if isSignedIn() && isValidId(activityId) && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['results', 'active'])
+      );
+      allow delete: if isSignedIn() && resource.data.createdBy == request.auth.uid;
+    }
+
+    // 8. Call Logs Collection
+    match /callLogs/{callLogId} {
+      function isCallParticipant() {
+        return isSignedIn() && (resource.data.callerId == request.auth.uid || resource.data.receiverId == request.auth.uid);
+      }
+
+      allow get: if isCallParticipant();
+      allow list: if isCallParticipant();
+
+      function isValidCallLog(data) {
+        return data.keys().hasAll(['id', 'callerId', 'callerName', 'type', 'status', 'startedAt']) &&
+          data.id is string && data.id.size() <= 128 &&
+          data.callerId is string && data.callerId == request.auth.uid &&
+          data.type in ['voice', 'video'] &&
+          data.status in ['completed', 'missed', 'rejected', 'busy'] &&
+          data.startedAt is number;
+      }
+
+      allow create: if isSignedIn() && isValidId(callLogId) && isValidCallLog(incoming());
+      allow update: if isCallParticipant() && (
+        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'durationSec'])
+      );
+      allow delete: if isCallParticipant();
+    }
+  }
+}

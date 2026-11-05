@@ -1,0 +1,215 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile document storing account information and preferences.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "authUid": { "type": "string", "maxLength": 128 },
+        "authProvider": { "type": "string", "enum": ["google", "email", "password", "local"] },
+        "userId": { "type": "string", "maxLength": 64, "pattern": "^[a-zA-Z0-9_@\\-]+$" },
+        "numericId": { "type": "string", "maxLength": 16 },
+        "messengerId": { "type": "string", "maxLength": 32 },
+        "email": { "type": "string", "maxLength": 128 },
+        "displayName": { "type": "string", "maxLength": 64 },
+        "firstName": { "type": "string", "maxLength": 64 },
+        "lastName": { "type": "string", "maxLength": 64 },
+        "dateOfBirth": { "type": "string", "maxLength": 32 },
+        "country": { "type": "string", "maxLength": 64 },
+        "gender": { "type": "string", "enum": ["Man", "Woman", "Child", "Other"] },
+        "photoURL": { "type": "string", "maxLength": 50000 },
+        "avatarUrl": { "type": "string", "maxLength": 50000 },
+        "avatarEmoji": { "type": "string", "maxLength": 16 },
+        "statusText": { "type": "string", "maxLength": 200 },
+        "online": { "type": "boolean" },
+        "lastSeen": { "type": "number" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" },
+        "friends": { "type": "array" },
+        "blockedUsers": { "type": "array" },
+        "profileCompleted": { "type": "boolean" }
+      },
+      "required": ["id", "displayName", "createdAt"]
+    },
+    "Conversation": {
+      "title": "Conversation",
+      "description": "Direct or group chat conversation room metadata.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "type": { "type": "string", "enum": ["direct", "group"] },
+        "name": { "type": "string", "maxLength": 100 },
+        "description": { "type": "string", "maxLength": 300 },
+        "avatarEmoji": { "type": "string", "maxLength": 16 },
+        "avatarUrl": { "type": "string", "maxLength": 50000 },
+        "participants": { "type": "array" },
+        "adminIds": { "type": "array" },
+        "createdBy": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" },
+        "unreadCount": { "type": "number" },
+        "theme": { "type": "string", "maxLength": 32 }
+      },
+      "required": ["id", "type", "participants", "createdAt", "updatedAt"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "A single chat message within a conversation.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "conversationId": { "type": "string", "maxLength": 128 },
+        "senderId": { "type": "string", "maxLength": 128 },
+        "senderName": { "type": "string", "maxLength": 64 },
+        "senderAvatar": { "type": "string", "maxLength": 50000 },
+        "receiverId": { "type": "string", "maxLength": 128 },
+        "type": { "type": "string", "enum": ["text", "image", "voice", "video", "file", "poll", "activity"] },
+        "text": { "type": "string", "maxLength": 5000 },
+        "mediaUrl": { "type": "string", "maxLength": 50000 },
+        "mediaName": { "type": "string", "maxLength": 200 },
+        "mediaSize": { "type": "number" },
+        "mediaDuration": { "type": "number" },
+        "status": { "type": "string", "enum": ["sent", "delivered", "read"] },
+        "readBy": { "type": "array" },
+        "deliveredTo": { "type": "array" },
+        "deletedFor": { "type": "array" },
+        "deletedForEveryone": { "type": "boolean" },
+        "pinned": { "type": "boolean" },
+        "pinnedBy": { "type": "string", "maxLength": 128 },
+        "pinnedByName": { "type": "string", "maxLength": 64 },
+        "pinnedAt": { "type": "number" },
+        "starredBy": { "type": "array" },
+        "pollId": { "type": "string", "maxLength": 128 },
+        "activityId": { "type": "string", "maxLength": 128 },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "conversationId", "senderId", "senderName", "type", "text", "status", "createdAt"]
+    },
+    "FriendRequest": {
+      "title": "FriendRequest",
+      "description": "Friend request linking two users.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "fromUserId": { "type": "string", "maxLength": 128 },
+        "toUserId": { "type": "string", "maxLength": 128 },
+        "status": { "type": "string", "enum": ["pending", "accepted", "rejected"] },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "fromUserId", "toUserId", "status", "createdAt"]
+    },
+    "Story": {
+      "title": "Story",
+      "description": "Ephemeral 24-hour status story or update.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "userId": { "type": "string", "maxLength": 128 },
+        "userName": { "type": "string", "maxLength": 64 },
+        "userAvatar": { "type": "string", "maxLength": 50000 },
+        "type": { "type": "string", "enum": ["text", "image", "poll", "quiz", "question"] },
+        "content": { "type": "string", "maxLength": 50000 },
+        "caption": { "type": "string", "maxLength": 300 },
+        "background": { "type": "string", "maxLength": 100 },
+        "reactions": { "type": "array" },
+        "viewers": { "type": "array" },
+        "visibility": { "type": "string", "enum": ["everyone", "friends"] },
+        "createdAt": { "type": "number" },
+        "expiresAt": { "type": "number" }
+      },
+      "required": ["id", "userId", "userName", "type", "content", "createdAt", "expiresAt"]
+    },
+    "Poll": {
+      "title": "Poll",
+      "description": "Interactive voting poll within a chat.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "conversationId": { "type": "string", "maxLength": 128 },
+        "creatorId": { "type": "string", "maxLength": 128 },
+        "creatorName": { "type": "string", "maxLength": 64 },
+        "question": { "type": "string", "maxLength": 300 },
+        "options": { "type": "array" },
+        "multipleChoice": { "type": "boolean" },
+        "closed": { "type": "boolean" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "conversationId", "creatorId", "question", "options", "createdAt"]
+    },
+    "ChatActivity": {
+      "title": "ChatActivity",
+      "description": "Interactive game or trivia challenge inside a chat.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "conversationId": { "type": "string", "maxLength": 128 },
+        "type": { "type": "string", "maxLength": 64 },
+        "title": { "type": "string", "maxLength": 100 },
+        "description": { "type": "string", "maxLength": 300 },
+        "prompt": { "type": "string", "maxLength": 500 },
+        "answer": { "type": "string", "maxLength": 200 },
+        "options": { "type": "array" },
+        "results": { "type": "array" },
+        "active": { "type": "boolean" },
+        "createdBy": { "type": "string", "maxLength": 128 },
+        "creatorName": { "type": "string", "maxLength": 64 },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "conversationId", "type", "title", "createdBy", "createdAt"]
+    },
+    "CallLog": {
+      "title": "CallLog",
+      "description": "Call history record for voice and video calls.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "callerId": { "type": "string", "maxLength": 128 },
+        "callerName": { "type": "string", "maxLength": 64 },
+        "callerAvatar": { "type": "string", "maxLength": 50000 },
+        "receiverId": { "type": "string", "maxLength": 128 },
+        "receiverName": { "type": "string", "maxLength": 64 },
+        "receiverAvatar": { "type": "string", "maxLength": 50000 },
+        "type": { "type": "string", "enum": ["voice", "video"] },
+        "status": { "type": "string", "enum": ["completed", "missed", "rejected", "busy"] },
+        "startedAt": { "type": "number" },
+        "durationSec": { "type": "number" }
+      },
+      "required": ["id", "callerId", "callerName", "type", "status", "startedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "User profiles indexed by User UID."
+    },
+    "/conversations/{conversationId}": {
+      "schema": { "$ref": "#/entities/Conversation" },
+      "description": "Chat conversations for direct and group communications."
+    },
+    "/conversations/{conversationId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/Message" },
+      "description": "Messages posted inside conversations."
+    },
+    "/friendRequests/{requestId}": {
+      "schema": { "$ref": "#/entities/FriendRequest" },
+      "description": "Pending and resolved friend requests between users."
+    },
+    "/stories/{storyId}": {
+      "schema": { "$ref": "#/entities/Story" },
+      "description": "Public and friend status stories that expire after 24 hours."
+    },
+    "/polls/{pollId}": {
+      "schema": { "$ref": "#/entities/Poll" },
+      "description": "Interactive voting polls within conversations."
+    },
+    "/activities/{activityId}": {
+      "schema": { "$ref": "#/entities/ChatActivity" },
+      "description": "Interactive mini-games and trivia challenges."
+    },
+    "/callLogs/{callLogId}": {
+      "schema": { "$ref": "#/entities/CallLog" },
+      "description": "Call records accessible to call participants."
+    }
+  }
+}

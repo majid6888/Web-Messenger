@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>Web Messenger</title>
+    <script>
+      (function() {
+        try {
+          var originalFetch = typeof window !== 'undefined' && window.fetch ? window.fetch.bind(window) : undefined;
+          var activeFetch = originalFetch;
+          Object.defineProperty(window, 'fetch', {
+            get: function() {
+              return activeFetch;
+            },
+            set: function(newFetch) {
+              activeFetch = typeof newFetch === 'function' ? newFetch : activeFetch;
+            },
+            configurable: true,
+            enumerable: true
+          });
+          if (typeof globalThis !== 'undefined' && globalThis !== window) {
+            try {
+              Object.defineProperty(globalThis, 'fetch', {
+                get: function() {
+                  return activeFetch;
+                },
+                set: function(newFetch) {
+                  activeFetch = typeof newFetch === 'function' ? newFetch : activeFetch;
+                },
+                configurable: true,
+                enumerable: true
+              });
+            } catch (e) {}
+          }
+        } catch (err) {}
+      })();
+    </script>
+    <meta name="description" content="Real-time messaging platform with direct & group chats, voice messages, WebRTC audio/video calls, and media sharing." />
+    <meta name="theme-color" content="#ffffff" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Web Messenger" />
+    <link rel="icon" type="image/png" href="/messenger-icon.png" />
+    <link rel="shortcut icon" href="/messenger-icon.png" />
+    <link rel="apple-touch-icon" href="/messenger-icon.png" />
+    <meta property="og:title" content="Web Messenger" />
+    <meta property="og:description" content="Real-time messaging platform with direct & group chats, voice messages, WebRTC audio/video calls, and media sharing." />
+    <meta property="og:image" content="/messenger-icon.png" />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:image" content="/messenger-icon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Outfit:wght@500;600;700&display=swap" rel="stylesheet">
+  </head>
+  <body class="bg-white text-slate-900 antialiased selection:bg-indigo-500 selection:text-white">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
